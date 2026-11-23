@@ -2,11 +2,14 @@
 """
 批量生成“一人一网址”的圣诞树链接
 =================================
-1. 编辑下面的 PEOPLE，或者在同目录建一个 people.txt（每行：名字,祝福语,配色）
+1. 编辑 people.txt（每行：名字|祝福语|配色）
 2. 运行：python make_links.py
-3. 它会打印每个链接，并生成一个 links.html（双击就能点开、复制、发人）
+3. 会打印每个链接，并生成 links.html（双击就能点开、复制）
 
-配色可选：ice 霜蓝 / gold 暖金 / rose 樱粉 / mint 薄荷 / violet 紫罗兰 / snow 初雪 / aurora 极光
+配色可选：ice 霜蓝 / sky 天蓝 / azure 深蓝 / klein 克莱因蓝 / emerald 翡翠绿
+          red 正红 / redsky 红蓝 / lagoon 青蓝 / gold 暖金 / rose 樱粉
+          mint 薄荷 / violet 紫罗兰 / snow 初雪 / aurora 极光
+          noir 黑白 / ink 黑色
 """
 
 import html
@@ -15,15 +18,13 @@ import urllib.parse
 
 # ---------------------------------------------------------------- 改这里
 BASE = "https://ZYH6669.github.io/xmas-tree/"
+V = "3"          # 版本号：每次更新页面就 +1，能绕开浏览器缓存
 
 # 名字, 祝福语（可留空）, 配色（可留空 = ice）
 PEOPLE = [
-    ("小明", "圣诞快乐", "gold"),
-    ("小美", "平安喜乐", "rose"),
-    ("阿杰", "", "mint"),
+    ("嘉嘉", "要幸福", "emerald"),
 ]
 
-# 每一行：名字|祝福语|配色（用竖线分隔，祝福语里可以有逗号）；用 # 开头是注释
 PEOPLE_FILE = "people.txt"
 
 
@@ -33,7 +34,7 @@ def load_people():
     rows = []
     with open(PEOPLE_FILE, encoding="utf-8") as f:
         for line in f:
-            line = line.strip()
+            line = line.strip().lstrip("\ufeff")
             if not line or line.startswith("#"):
                 continue
             line = line.replace("｜", "|")
@@ -56,6 +57,8 @@ def build_url(name, greet="", pal="", msg=""):
         q.append(("msg", msg))
     if pal:
         q.append(("pal", pal))
+    if V:
+        q.append(("v", V))
     return BASE + "?" + urllib.parse.urlencode(q)
 
 
@@ -65,7 +68,7 @@ def main():
     for name, msg, pal in people:
         url = build_url(name, msg=msg, pal=pal)
         rows.append((name, msg, pal, url))
-        print(f"{name:　<6} {pal or 'ice':<7} {url}")
+        print(f"{name}\t{pal or 'ice'}\t{url}")
 
     body = "\n".join(
         f'<li><a href="{html.escape(u)}" target="_blank">{html.escape(n)}</a>'

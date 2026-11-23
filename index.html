@@ -61,6 +61,8 @@ const COLOR_RGB = {
   silver: [205, 218, 238],
   grey:   [140, 155, 175],
   slate:  [ 90, 105, 130],
+  black:  [ 20,  22,  26],
+  charcoal:[ 62,  64,  70],
 };
 
 // 一个主题 = 树身配色比例 + 爱心用色 + 两处光晕颜色（彩色主题里的白色只留一点点当高光）
@@ -72,8 +74,9 @@ const SCHEMES = {
   emerald: { name: '翡翠绿',   list: [['white', .08], ['green', .44], ['mint', .36], ['teal', .10], ['gold', .02]], heart: ['green', 'mint', 'white'], glow: [60, 220, 150], hg: [130, 255, 195] },
   red:     { name: '正红',     list: [['white', .08], ['red', .52], ['crimson', .30], ['gold', .06], ['rose', .04]], heart: ['red', 'gold', 'white'], glow: [235, 70, 70], hg: [255, 140, 140] },
   redsky:  { name: '红蓝',     list: [['red', .56], ['crimson', .30], ['gold', .08], ['white', .06]], heart: ['sky', 'white', 'red'], glow: [210, 110, 160], hg: [255, 160, 190], gar: 'sky' },
-  noir:    { name: '黑白',     list: [['white', .50], ['silver', .38], ['grey', .12]], heart: ['white', 'silver'], glow: [200, 212, 230], hg: [235, 242, 252] },
-  ink:     { name: '墨黑',     list: [['silver', .44], ['grey', .34], ['white', .16], ['slate', .06]], heart: ['white', 'silver'], glow: [150, 168, 195], hg: [210, 222, 238] },
+  noir:    { name: '黑白', light: true,  bg: ['#ffffff', '#e9edf2'], list: [['black', .64], ['charcoal', .22], ['silver', .09], ['white', .05]], heart: ['black', 'white'], glow: [80, 90, 105], hg: [110, 120, 135], gar: 'black' },
+  ink:     { name: '墨黑', light: true,  bg: ['#f7f2e9', '#e7ddcb'], list: [['black', .74], ['charcoal', .20], ['gold', .06]], heart: ['gold', 'black'], glow: [120, 100, 70], hg: [180, 150, 90], gar: 'gold' },
+  lagoon:  { name: '青蓝', list: [['green', .40], ['sky', .34], ['white', .10], ['gold', .16]], heart: ['sky', 'white', 'green'], glow: [60, 200, 190], hg: [150, 240, 220], gar: 'sky' },
   gold:    { name: '暖金',     list: [['white', .08], ['gold', .50], ['amber', .32], ['rose', .06], ['ice', .04]], heart: ['gold', 'amber', 'white'], glow: [244, 180, 90], hg: [255, 200, 130] },
   rose:    { name: '樱粉',     list: [['white', .10], ['pink', .46], ['rose', .30], ['violet', .10], ['gold', .04]], heart: ['pink', 'rose', 'white'], glow: [240, 120, 180], hg: [255, 160, 205] },
   mint:    { name: '薄荷',     list: [['white', .10], ['mint', .48], ['teal', .28], ['ice', .12], ['gold', .02]], heart: ['mint', 'teal', 'white'], glow: [90, 230, 200], hg: [150, 255, 225] },
@@ -99,6 +102,7 @@ const PAL_ALIAS = {
 
 const PAL_RAW = (Q.get('pal') || 'ice').trim();
 const SCHEME = SCHEMES[PAL_ALIAS[PAL_RAW] || PAL_RAW.toLowerCase()] || SCHEMES.ice;
+const LIGHT = !!SCHEME.light;          // 浅色纸面主题（黑/黑白）
 
 function pickColor() {
   let r = Math.random(), acc = 0;
@@ -120,10 +124,10 @@ function accColor() {
 }
 
 function garlandColor() {
-  if (SCHEME.gar) return Math.random() < 0.45 ? 'white' : SCHEME.gar;
-  if (SCHEME.name === '黑白' || SCHEME.name === '墨黑') {
-    return Math.random() < 0.7 ? 'white' : 'silver';
+  if (SCHEME.gar) {
+    return Math.random() < 0.5 ? SCHEME.gar : (LIGHT ? 'charcoal' : 'white');
   }
+  if (LIGHT) return Math.random() < 0.6 ? 'black' : 'charcoal';
   const r = Math.random();
   return r < 0.35 ? 'white' : r < 0.8 ? 'gold' : accColor();
 }
@@ -150,14 +154,15 @@ const PHASE = (SEED % 997) / 997 * TAU;
 
 /* ---------------- 光点贴图（预渲染，保证上万粒子也流畅） ---------------- */
 const SPRITE = 64;
-function makeDot([r, g, b]) {
+function makeDot([r, g, b], light) {
   const c = document.createElement('canvas');
   c.width = c.height = SPRITE;
   const x = c.getContext('2d');
-  // 核心用“颜色+少量白”，纯白会让整棵树在叠加后糊成白色
-  const cr = Math.round(r * 0.55 + 255 * 0.45);
-  const cg = Math.round(g * 0.55 + 255 * 0.45);
-  const cb = Math.round(b * 0.55 + 255 * 0.45);
+  // 深色主题：核心偏白一点才有光感；浅色纸面主题：核心就用本色，才看得出“黑”
+  const mix = light ? 0.10 : 0.45;
+  const cr = Math.round(r * (1 - mix) + 255 * mix);
+  const cg = Math.round(g * (1 - mix) + 255 * mix);
+  const cb = Math.round(b * (1 - mix) + 255 * mix);
   const grd = x.createRadialGradient(32, 32, 0, 32, 32, 32);
   grd.addColorStop(0.00, `rgba(${cr},${cg},${cb},1)`);
   grd.addColorStop(0.16, `rgba(${r},${g},${b},0.95)`);
@@ -169,14 +174,15 @@ function makeDot([r, g, b]) {
   return c;
 }
 
-function makeStar([r, g, b]) {
+function makeStar([r, g, b], light) {
   const s = 96, c = document.createElement('canvas');
   c.width = c.height = s;
   const x = c.getContext('2d');
   x.globalCompositeOperation = 'lighter';
+  const core0 = light ? `rgba(${r},${g},${b},1)` : 'rgba(255,255,255,1)';
 
   const core = x.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s * 0.17);
-  core.addColorStop(0, 'rgba(255,255,255,1)');
+  core.addColorStop(0, core0);
   core.addColorStop(0.35, `rgba(${r},${g},${b},0.8)`);
   core.addColorStop(1, `rgba(${r},${g},${b},0)`);
   x.fillStyle = core;
@@ -189,7 +195,7 @@ function makeStar([r, g, b]) {
     x.rotate(i * Math.PI / 2);
     x.scale(1, 0.05);
     const spike = x.createRadialGradient(0, 0, 0, 0, 0, s / 2);
-    spike.addColorStop(0.00, 'rgba(255,255,255,0.95)');
+    spike.addColorStop(0.00, light ? `rgba(${r},${g},${b},0.95)` : 'rgba(255,255,255,0.95)');
     spike.addColorStop(0.22, `rgba(${r},${g},${b},0.5)`);
     spike.addColorStop(1.00, `rgba(${r},${g},${b},0)`);
     x.fillStyle = spike;
@@ -201,8 +207,8 @@ function makeStar([r, g, b]) {
 
 const DOT = {}, STAR = {};
 for (const k in COLOR_RGB) {
-  DOT[k] = makeDot(COLOR_RGB[k]);
-  STAR[k] = makeStar(COLOR_RGB[k]);
+  DOT[k] = makeDot(COLOR_RGB[k], LIGHT);
+  STAR[k] = makeStar(COLOR_RGB[k], LIGHT);
 }
 
 /* ---------------- 场景状态 ---------------- */
@@ -428,7 +434,7 @@ function buildTree() {
       y: BOT - u * TH + rand(-12, 12),
       z: Math.sin(ang) * rad,
       s: rand(55, 125),
-      a: rand(0.022, 0.055),
+      a: LIGHT ? rand(0.008, 0.022) : rand(0.022, 0.055),
       c: accColor(),
       tamp: rand(0, 0.2),
       tsp: rand(0.5, 1.5),
@@ -521,9 +527,15 @@ function resize() {
   bloomB.height = BH2;
 
   bgGrad = ctx.createRadialGradient(W * 0.5, H * 0.42, 0, W * 0.5, H * 0.42, Math.max(W, H) * 0.8);
-  bgGrad.addColorStop(0, '#0b1626');
-  bgGrad.addColorStop(0.42, '#070c16');
-  bgGrad.addColorStop(1, '#03050a');
+  if (LIGHT) {
+    bgGrad.addColorStop(0, SCHEME.bg[0]);
+    bgGrad.addColorStop(0.55, SCHEME.bg[1]);
+    bgGrad.addColorStop(1, SCHEME.bg[1]);
+  } else {
+    bgGrad.addColorStop(0, '#0b1626');
+    bgGrad.addColorStop(0.42, '#070c16');
+    bgGrad.addColorStop(1, '#03050a');
+  }
 
   buildStars();
   buildSnow();
@@ -571,18 +583,18 @@ function drawText(alpha) {
   ctx.textBaseline = 'alphabetic';
 
   // ① 小字：Merry Christmas
-  ctx.fillStyle = '#9fb8d0';
-  ctx.shadowColor = rgba(SCHEME.glow, 0.75);
-  ctx.shadowBlur = fs * 0.35;
+  ctx.fillStyle = LIGHT ? '#5f6b7a' : '#9fb8d0';
+  ctx.shadowColor = LIGHT ? 'rgba(255,255,255,0.9)' : rgba(SCHEME.glow, 0.75);
+  ctx.shadowBlur = fs * (LIGHT ? 0.2 : 0.35);
   if ('letterSpacing' in ctx) ctx.letterSpacing = `${(fs * 0.22).toFixed(1)}px`;
   ctx.font = `italic ${(fs * 0.4).toFixed(0)}px Georgia, "Times New Roman", "Songti SC", serif`;
   ctx.fillText(GREET, x, y);
   ctx.fillText(GREET, x, y);
 
   // ② 大字：TO:名字
-  ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = rgba(SCHEME.glow, 0.85);
-  ctx.shadowBlur = fs * 0.7;
+  ctx.fillStyle = LIGHT ? '#151a21' : '#ffffff';
+  ctx.shadowColor = LIGHT ? 'rgba(255,255,255,0.95)' : rgba(SCHEME.glow, 0.85);
+  ctx.shadowBlur = fs * (LIGHT ? 0.25 : 0.7);
   if ('letterSpacing' in ctx) ctx.letterSpacing = `${(fs * 0.02).toFixed(1)}px`;
   ctx.font = `italic ${fs.toFixed(0)}px Georgia, "Times New Roman", "Songti SC", serif`;
   ctx.fillText('TO:' + TO, x + fs * 0.05, y + fs * 1.3);
@@ -593,9 +605,9 @@ function drawText(alpha) {
     if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
     const mfs = fs * (MSG.length > 24 ? 0.45 : 0.52);
     ctx.font = `italic ${mfs.toFixed(0)}px Georgia, "Times New Roman", "Songti SC", serif`;
-    ctx.fillStyle = '#dbe9f8';
-    ctx.shadowBlur = fs * 0.3;
-    const maxW = PORTRAIT ? W * 0.82 : W * 0.36;
+    ctx.fillStyle = LIGHT ? '#3b4553' : '#dbe9f8';
+    ctx.shadowBlur = LIGHT ? 0 : fs * 0.3;
+    const maxW = PORTRAIT ? W * 0.82 : W * 0.32;
     const lines = wrapText(MSG, maxW).slice(0, PORTRAIT ? 4 : 6);
     for (let i = 0; i < lines.length; i++) {
       const ly = y + fs * 2.42 + i * mfs * 1.42;
@@ -631,33 +643,39 @@ function frame(now) {
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
 
-  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalCompositeOperation = LIGHT ? 'source-over' : 'lighter';
 
-  // 背景星
-  for (const s of stars) {
-    const tw = 0.55 + 0.45 * Math.sin(t * s.sp + s.ph);
-    ctx.globalAlpha = s.a * tw * ease;
-    const spr = s.big ? STAR.ice : DOT.white;
-    const sz = s.s * 5;
-    ctx.drawImage(spr, s.x - sz / 2, s.y - sz / 2, sz, sz);
+  // 背景星（纸面主题跳过，白底上的白点看不见）
+  if (!LIGHT) {
+    for (const s of stars) {
+      const tw = 0.55 + 0.45 * Math.sin(t * s.sp + s.ph);
+      ctx.globalAlpha = s.a * tw * ease;
+      const spr = s.big ? STAR.ice : DOT.white;
+      const sz = s.s * 5;
+      ctx.drawImage(spr, s.x - sz / 2, s.y - sz / 2, sz, sz);
+    }
   }
 
-  // 大气光晕 + 地面反光（世界坐标）
+  // 大气光晕 + 地面反光（世界坐标；纸面主题不叠光）
   ctx.setTransform(DPR * S, 0, 0, DPR * S, DPR * W / 2, DPR * (H / 2 + YOFF * S));
 
-  const amb = ctx.createRadialGradient(0, -60, 0, 0, -60, 520);
-  amb.addColorStop(0, rgba(SCHEME.glow, 0.20));
-  amb.addColorStop(0.5, rgba(SCHEME.glow, 0.07));
-  amb.addColorStop(1, rgba(SCHEME.glow, 0));
-  ctx.fillStyle = amb;
-  ctx.fillRect(-VW / 2, -VH / 2, VW, VH);
+  if (!LIGHT) {
+    const amb = ctx.createRadialGradient(0, -60, 0, 0, -60, 520);
+    amb.addColorStop(0, rgba(SCHEME.glow, 0.20));
+    amb.addColorStop(0.5, rgba(SCHEME.glow, 0.07));
+    amb.addColorStop(1, rgba(SCHEME.glow, 0));
+    ctx.fillStyle = amb;
+    ctx.fillRect(-VW / 2, -VH / 2, VW, VH);
+  }
 
-  const gnd = ctx.createRadialGradient(0, TREE.BOT + 20, 0, 0, TREE.BOT + 20, 430);
-  gnd.addColorStop(0, rgba(SCHEME.glow, 0.22));
-  gnd.addColorStop(0.5, rgba(SCHEME.glow, 0.06));
-  gnd.addColorStop(1, rgba(SCHEME.glow, 0));
-  ctx.fillStyle = gnd;
-  ctx.fillRect(-VW / 2, TREE.BOT - 220, VW, 520);
+  if (!LIGHT) {
+    const gnd = ctx.createRadialGradient(0, TREE.BOT + 20, 0, 0, TREE.BOT + 20, 430);
+    gnd.addColorStop(0, rgba(SCHEME.glow, 0.22));
+    gnd.addColorStop(0.5, rgba(SCHEME.glow, 0.06));
+    gnd.addColorStop(1, rgba(SCHEME.glow, 0));
+    ctx.fillStyle = gnd;
+    ctx.fillRect(-VW / 2, TREE.BOT - 220, VW, 520);
+  }
 
   // 树体粒子
   for (let i = 0; i < world.length; i++) {
@@ -675,7 +693,7 @@ function frame(now) {
 
     const depth = clamp((z2 + 340) / 680, 0, 1);          // 1 = 靠近镜头
     const tw = 1 - p.tamp + p.tamp * Math.sin(t * p.tsp + p.tph);
-    const a = p.a * (0.34 + 0.66 * depth) * tw * ease;
+    const a = p.a * (0.34 + 0.66 * depth) * tw * ease * (LIGHT ? 1.45 : 1);
     if (a < 0.012) continue;
 
     const sz = p.haze ? p.s : p.s * (0.75 + 0.45 * depth);
@@ -689,13 +707,15 @@ function frame(now) {
   const hk = FOCAL / CAM_Z;
   const hyy = (HEART.y + hb) * hk;
 
-  const bloom = ctx.createRadialGradient(0, hyy, 0, 0, hyy, 92);
-  bloom.addColorStop(0, rgba(SCHEME.hg, 0.34));
-  bloom.addColorStop(0.45, rgba(SCHEME.hg, 0.10));
-  bloom.addColorStop(1, rgba(SCHEME.hg, 0));
-  ctx.globalAlpha = ease;
-  ctx.fillStyle = bloom;
-  ctx.fillRect(-105, hyy - 105, 210, 210);
+  if (!LIGHT) {
+    const bloom = ctx.createRadialGradient(0, hyy, 0, 0, hyy, 92);
+    bloom.addColorStop(0, rgba(SCHEME.hg, 0.34));
+    bloom.addColorStop(0.45, rgba(SCHEME.hg, 0.10));
+    bloom.addColorStop(1, rgba(SCHEME.hg, 0));
+    ctx.globalAlpha = ease;
+    ctx.fillStyle = bloom;
+    ctx.fillRect(-105, hyy - 105, 210, 210);
+  }
 
   for (const p of heart) {
     const tw = 0.6 + 0.4 * Math.sin(t * p.tsp + p.tph);
@@ -704,32 +724,36 @@ function frame(now) {
     ctx.drawImage(DOT[p.c], p.x - sz / 2, hyy + p.y - sz / 2, sz, sz);
   }
 
-  // ---- 辉光：把当前画面降采样两次，再叠回去 ----
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  actx.setTransform(1, 0, 0, 1, 0, 0);
-  actx.clearRect(0, 0, AW, AH);
-  actx.drawImage(canvas, 0, 0, AW, AH);
-  bctx.setTransform(1, 0, 0, 1, 0, 0);
-  bctx.clearRect(0, 0, BW2, BH2);
-  bctx.drawImage(bloomA, 0, 0, BW2, BH2);
+  // ---- 辉光：把当前画面降采样两次，再叠回去（纸面主题不需要） ----
+  if (!LIGHT) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    actx.setTransform(1, 0, 0, 1, 0, 0);
+    actx.clearRect(0, 0, AW, AH);
+    actx.drawImage(canvas, 0, 0, AW, AH);
+    bctx.setTransform(1, 0, 0, 1, 0, 0);
+    bctx.clearRect(0, 0, BW2, BH2);
+    bctx.drawImage(bloomA, 0, 0, BW2, BH2);
 
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.30;
+    ctx.drawImage(bloomA, 0, 0, W, H);
+    ctx.globalAlpha = 0.18;
+    ctx.drawImage(bloomB, 0, 0, W, H);
+  }
+
+  // 雪（切回屏幕坐标）
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  ctx.globalCompositeOperation = 'lighter';
-  ctx.globalAlpha = 0.30;
-  ctx.drawImage(bloomA, 0, 0, W, H);
-  ctx.globalAlpha = 0.18;
-  ctx.drawImage(bloomB, 0, 0, W, H);
-
-  // 雪
+  ctx.globalCompositeOperation = LIGHT ? 'source-over' : 'lighter';
   for (const f of snow) {
     f.y += f.vy * dt;
     f.x += (f.drift + Math.sin(t * f.sp + f.ph) * 6) * dt;
     if (f.y - f.r > H) { f.y = -f.r; f.x = rand(0, W); }
     if (f.x < -30) f.x = W + 30;
     if (f.x > W + 30) f.x = -30;
-    ctx.globalAlpha = f.a * ease;
+    ctx.globalAlpha = f.a * ease * (LIGHT ? 0.5 : 1);
     const sz = f.r * 3.2;
-    ctx.drawImage(DOT.white, f.x - sz / 2, f.y - sz / 2, sz, sz);
+    ctx.drawImage(LIGHT ? DOT.slate : DOT.white, f.x - sz / 2, f.y - sz / 2, sz, sz);
   }
 
   // 点击星光
