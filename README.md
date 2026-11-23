@@ -4,11 +4,14 @@
 
 ```
 christmas-tree/
-├── index.html   ← 主推：网页版，粒子 + 辉光，最接近你发的截图
-├── tree.py      ← Python 版（tkinter），命令行直接跑
-├── server.py    ← 一键开局域网链接，手机连同一个 WiFi 就能看
-└── preview.png  ← 网页版效果图
+├── index.html    ← 主推：网页版，粒子 + 辉光，最接近你发的截图
+├── tree.py       ← Python 版（tkinter），命令行直接跑
+├── server.py     ← 一键开局域网链接，手机连同一个 WiFi 就能看
+├── make_links.py ← 批量生成“一人一网址”（配色 / 名字 / 祝福语各不相同）
+└── preview.png   ← 网页版效果图
 ```
+
+> 已部署：**https://zyh6669.github.io/xmas-tree/**
 
 ---
 
@@ -16,16 +19,51 @@ christmas-tree/
 
 **双击 `index.html`** 就行，Chrome / Edge / Firefox 都可以。
 
-### 换成 ta 的名字
+### 一人一条链接：改名字、祝福语、配色
 
-在地址栏后面加参数：
+在网址后面加参数即可，**同一个页面能变出无数种**：
 
-| 地址 | 效果 |
-| --- | --- |
-| `index.html?to=小明` | 第二行变成 `TO:小明` |
-| `index.html?greet=圣诞快乐` | 第一行换成中文 |
-| `index.html?to=小明&greet=圣诞快乐` | 两个一起改 |
-| `index.html?still=1` | 画面定格，方便截图 / 当壁纸 |
+| 参数 | 例子 | 作用 |
+| --- | --- | --- |
+| `to` | `?to=小明` | 第二行变成 `TO:小明` |
+| `greet` | `?greet=圣诞快乐` | 第一行换掉 `Merry Christmas` |
+| `msg` | `?msg=平安喜乐` | 再加一行小字的祝福 |
+| `pal` | `?pal=gold` | 整套配色 |
+| `still` | `?still=1` | 画面定格，方便截图 / 当壁纸 |
+
+配色一共 7 套：
+
+| `pal=` | 名字 | 感觉 |
+| --- | --- | --- |
+| `ice` | 霜蓝 | 默认，冷白偏蓝，最接近你发的截图 |
+| `gold` | 暖金 | 香槟金，像暖光灯串 |
+| `rose` | 樱粉 | 粉紫，偏浪漫 |
+| `mint` | 薄荷 | 青绿，清爽 |
+| `violet` | 紫罗兰 | 深紫 + 蓝，神秘 |
+| `snow` | 初雪 | 几乎纯白，安静 |
+| `aurora` | 极光 | 青绿 + 紫，最花哨 |
+
+组合起来就是一人一条：
+
+```
+https://zyh6669.github.io/xmas-tree/?to=小明&greet=圣诞快乐&msg=平安喜乐&pal=gold
+https://zyh6669.github.io/xmas-tree/?to=小美&pal=rose&msg=永远开心
+https://zyh6669.github.io/xmas-tree/?to=阿杰&pal=mint
+```
+
+地址栏里中文会显示成 `%E5%B0%8F...`，这是正常的，微信/浏览器打开后就是中文。
+
+### 批量生成
+
+把名单写进 `people.txt`（每行 `名字,祝福语,配色`），然后 `python make_links.py`，
+会打印所有链接并生成 `links.html`（双击就能逐个点开、复制）。
+
+```
+# people.txt
+小明, 圣诞快乐, gold
+小美, 平安喜乐, rose
+阿杰, , mint
+```
 
 ### 快捷键
 
@@ -70,31 +108,40 @@ python tree.py 小明     # 第二行显示 TO:小明
 
 ## 三、怎么让朋友看到
 
-**① 就在身边 / 同一个 WiFi（最快）**
+**① 已经部署好了（最推荐）**
+
+GitHub Pages 已经在跑了：**https://zyh6669.github.io/xmas-tree/**
+
+一人一条链接，直接发过去就行，不用再传文件、也不用再部署：
+
+```
+https://zyh6669.github.io/xmas-tree/?to=小明&pal=gold&msg=圣诞快乐
+```
+
+**② 就在身边 / 同一个 WiFi**
 
 双击 `server.py`（或命令行 `python server.py`），控制台会打印一行
 `http://192.168.x.x:8000/`，手机连同一个 WiFi 把这个地址输进浏览器就能看。
 第一次运行 Windows 弹防火墙提示，点「允许访问」。关掉窗口就停止分享。
 
-**② 发文件（不用网络配置）**
+**③ 发文件（不用网络配置）**
 
 把 `index.html` 直接发给对方（QQ 传文件、邮箱附件、压缩包都行），对方双击就能看。
 ⚠️ 微信里直接发 `.html` 有的手机会拦，建议打包成 zip 或换个方式发。
 
-**③ 变成公网链接（推荐，谁在哪都能打开）**
+**④ 想换域名 / 换托管**
 
-把 `index.html` 传到任意一个免费静态托管，得到一个网址，发给谁都能看：
+把 `index.html` 传到任意一个免费静态托管即可：
 
 | 平台 | 特点 |
 | --- | --- |
-| **Netlify Drop**（netlify.com/drop） | 不用注册，把文件拖进去，几秒出链接，最省事 |
+| **GitHub Pages** | 现在用的，免费、有账号就行 |
+| **Netlify Drop**（netlify.com/drop） | 不用注册，把文件拖进去，几秒出链接 |
 | **Cloudflare Pages** | 免费、国内访问相对稳，需要注册 |
-| **GitHub Pages** | 有 GitHub 账号就行，国内偶尔慢 |
 | **Gitee Pages** | 国内快，但要实名认证 + 审核 |
 | 阿里云 OSS / 腾讯云 COS | 几毛钱，稳定，适合长期放 |
 
-传上去之后，想给某个朋友定制，就在链接后面加参数：
-`https://你的域名/?to=小明&greet=圣诞快乐`
+换了域名后照样能用 `?to=名字&pal=配色` 定制。
 
 **④ 只想发朋友圈**
 
