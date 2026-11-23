@@ -23,7 +23,7 @@ PEOPLE = [
     ("阿杰", "", "mint"),
 ]
 
-# 每一行：名字, 祝福语, 配色；用 # 开头是注释
+# 每一行：名字|祝福语|配色（用竖线分隔，祝福语里可以有逗号）；用 # 开头是注释
 PEOPLE_FILE = "people.txt"
 
 
@@ -36,7 +36,11 @@ def load_people():
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
-            parts = [p.strip() for p in line.replace("，", ",").split(",")]
+            line = line.replace("｜", "|")
+            if "|" in line:
+                parts = [p.strip() for p in line.split("|")]
+            else:                                   # 兼容用逗号分隔，只切前两刀
+                parts = [p.strip() for p in line.split(",", 2)]
             name = parts[0]
             msg = parts[1] if len(parts) > 1 else ""
             pal = parts[2] if len(parts) > 2 else ""
