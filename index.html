@@ -63,23 +63,23 @@ const COLOR_RGB = {
   slate:  [ 90, 105, 130],
 };
 
-// 一个主题 = 树身配色比例 + 爱心用色 + 两处光晕颜色
+// 一个主题 = 树身配色比例 + 爱心用色 + 两处光晕颜色（彩色主题里的白色只留一点点当高光）
 const SCHEMES = {
-  ice:     { name: '霜蓝',     list: [['white', .36], ['ice', .42], ['blue', .12], ['gold', .08], ['pink', .02]], heart: ['pink', 'violet', 'white'], glow: [92, 158, 245], hg: [214, 168, 255] },
-  sky:     { name: '天蓝',     list: [['white', .32], ['sky', .42], ['ice', .16], ['blue', .08], ['gold', .02]], heart: ['sky', 'ice', 'white'], glow: [90, 190, 255], hg: [175, 228, 255] },
-  azure:   { name: '深蓝',     list: [['white', .30], ['blue', .40], ['sky', .18], ['violet', .08], ['gold', .04]], heart: ['sky', 'blue', 'white'], glow: [70, 140, 255], hg: [150, 200, 255] },
-  klein:   { name: '克莱因蓝', list: [['white', .24], ['klein', .44], ['blue', .20], ['sky', .08], ['gold', .04]], heart: ['klein', 'sky', 'white'], glow: [40, 90, 235], hg: [120, 175, 255] },
-  emerald: { name: '翡翠绿',   list: [['white', .26], ['mint', .34], ['green', .26], ['teal', .10], ['gold', .04]], heart: ['mint', 'green', 'white'], glow: [70, 225, 160], hg: [150, 255, 205] },
-  red:     { name: '正红',     list: [['white', .26], ['red', .42], ['crimson', .18], ['gold', .10], ['rose', .04]], heart: ['red', 'gold', 'white'], glow: [235, 80, 80], hg: [255, 150, 150] },
-  redsky:  { name: '红蓝',     list: [['red', .32], ['sky', .30], ['white', .26], ['gold', .12]], heart: ['sky', 'white', 'red'], glow: [150, 130, 245], hg: [200, 185, 255] },
-  noir:    { name: '黑白',     list: [['white', .52], ['silver', .36], ['grey', .12]], heart: ['white', 'silver'], glow: [200, 212, 230], hg: [235, 242, 252] },
-  ink:     { name: '墨黑',     list: [['silver', .40], ['grey', .32], ['white', .20], ['slate', .08]], heart: ['white', 'silver'], glow: [150, 168, 195], hg: [210, 222, 238] },
-  gold:    { name: '暖金',     list: [['white', .32], ['gold', .40], ['amber', .18], ['ice', .08], ['rose', .02]], heart: ['gold', 'amber', 'white'], glow: [244, 190, 110], hg: [255, 205, 140] },
-  rose:    { name: '樱粉',     list: [['white', .30], ['pink', .40], ['rose', .18], ['violet', .10], ['gold', .02]], heart: ['pink', 'rose', 'white'], glow: [240, 140, 190], hg: [255, 170, 210] },
-  mint:    { name: '薄荷',     list: [['white', .32], ['mint', .40], ['teal', .16], ['ice', .10], ['gold', .02]], heart: ['mint', 'teal', 'white'], glow: [110, 235, 210], hg: [160, 255, 230] },
-  violet:  { name: '紫罗兰',   list: [['white', .30], ['violet', .42], ['blue', .16], ['pink', .10], ['gold', .02]], heart: ['violet', 'pink', 'white'], glow: [150, 130, 245], hg: [200, 170, 255] },
+  ice:     { name: '霜蓝',     list: [['white', .10], ['ice', .48], ['blue', .32], ['gold', .08], ['pink', .02]], heart: ['pink', 'violet', 'white'], glow: [92, 158, 245], hg: [214, 168, 255] },
+  sky:     { name: '天蓝',     list: [['white', .08], ['sky', .50], ['ice', .30], ['blue', .10], ['gold', .02]], heart: ['sky', 'ice', 'white'], glow: [70, 180, 255], hg: [150, 215, 255] },
+  azure:   { name: '深蓝',     list: [['white', .08], ['blue', .52], ['sky', .32], ['violet', .06], ['gold', .02]], heart: ['sky', 'blue', 'white'], glow: [60, 130, 255], hg: [140, 190, 255] },
+  klein:   { name: '克莱因蓝', list: [['white', .06], ['klein', .58], ['blue', .28], ['sky', .08]], heart: ['klein', 'sky', 'white'], glow: [30, 75, 230], hg: [110, 160, 255] },
+  emerald: { name: '翡翠绿',   list: [['white', .08], ['green', .44], ['mint', .36], ['teal', .10], ['gold', .02]], heart: ['green', 'mint', 'white'], glow: [60, 220, 150], hg: [130, 255, 195] },
+  red:     { name: '正红',     list: [['white', .08], ['red', .52], ['crimson', .30], ['gold', .06], ['rose', .04]], heart: ['red', 'gold', 'white'], glow: [235, 70, 70], hg: [255, 140, 140] },
+  redsky:  { name: '红蓝',     list: [['red', .56], ['crimson', .30], ['gold', .08], ['white', .06]], heart: ['sky', 'white', 'red'], glow: [210, 110, 160], hg: [255, 160, 190], gar: 'sky' },
+  noir:    { name: '黑白',     list: [['white', .50], ['silver', .38], ['grey', .12]], heart: ['white', 'silver'], glow: [200, 212, 230], hg: [235, 242, 252] },
+  ink:     { name: '墨黑',     list: [['silver', .44], ['grey', .34], ['white', .16], ['slate', .06]], heart: ['white', 'silver'], glow: [150, 168, 195], hg: [210, 222, 238] },
+  gold:    { name: '暖金',     list: [['white', .08], ['gold', .50], ['amber', .32], ['rose', .06], ['ice', .04]], heart: ['gold', 'amber', 'white'], glow: [244, 180, 90], hg: [255, 200, 130] },
+  rose:    { name: '樱粉',     list: [['white', .10], ['pink', .46], ['rose', .30], ['violet', .10], ['gold', .04]], heart: ['pink', 'rose', 'white'], glow: [240, 120, 180], hg: [255, 160, 205] },
+  mint:    { name: '薄荷',     list: [['white', .10], ['mint', .48], ['teal', .28], ['ice', .12], ['gold', .02]], heart: ['mint', 'teal', 'white'], glow: [90, 230, 200], hg: [150, 255, 225] },
+  violet:  { name: '紫罗兰',   list: [['white', .08], ['violet', .50], ['blue', .28], ['pink', .10], ['gold', .04]], heart: ['violet', 'pink', 'white'], glow: [140, 110, 250], hg: [195, 160, 255] },
   snow:    { name: '初雪',     list: [['white', .62], ['ice', .30], ['blue', .08]], heart: ['white', 'ice'], glow: [160, 200, 255], hg: [225, 238, 255] },
-  aurora:  { name: '极光',     list: [['mint', .30], ['teal', .24], ['ice', .26], ['violet', .12], ['white', .08]], heart: ['mint', 'teal', 'white'], glow: [110, 235, 200], hg: [180, 255, 220] },
+  aurora:  { name: '极光',     list: [['mint', .32], ['teal', .30], ['ice', .26], ['violet', .12]], heart: ['mint', 'teal', 'white'], glow: [100, 235, 195], hg: [170, 255, 215] },
 };
 
 // 允许直接写中文：?pal=绿色
@@ -119,6 +119,15 @@ function accColor() {
   return best[0];
 }
 
+function garlandColor() {
+  if (SCHEME.gar) return Math.random() < 0.45 ? 'white' : SCHEME.gar;
+  if (SCHEME.name === '黑白' || SCHEME.name === '墨黑') {
+    return Math.random() < 0.7 ? 'white' : 'silver';
+  }
+  const r = Math.random();
+  return r < 0.35 ? 'white' : r < 0.8 ? 'gold' : accColor();
+}
+
 function rgba(rgb, a) {
   return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`;
 }
@@ -145,11 +154,15 @@ function makeDot([r, g, b]) {
   const c = document.createElement('canvas');
   c.width = c.height = SPRITE;
   const x = c.getContext('2d');
+  // 核心用“颜色+少量白”，纯白会让整棵树在叠加后糊成白色
+  const cr = Math.round(r * 0.55 + 255 * 0.45);
+  const cg = Math.round(g * 0.55 + 255 * 0.45);
+  const cb = Math.round(b * 0.55 + 255 * 0.45);
   const grd = x.createRadialGradient(32, 32, 0, 32, 32, 32);
-  grd.addColorStop(0.00, 'rgba(255,255,255,1)');
-  grd.addColorStop(0.14, `rgba(${r},${g},${b},0.95)`);
-  grd.addColorStop(0.32, `rgba(${r},${g},${b},0.34)`);
-  grd.addColorStop(0.62, `rgba(${r},${g},${b},0.08)`);
+  grd.addColorStop(0.00, `rgba(${cr},${cg},${cb},1)`);
+  grd.addColorStop(0.16, `rgba(${r},${g},${b},0.95)`);
+  grd.addColorStop(0.36, `rgba(${r},${g},${b},0.34)`);
+  grd.addColorStop(0.66, `rgba(${r},${g},${b},0.08)`);
   grd.addColorStop(1.00, `rgba(${r},${g},${b},0)`);
   x.fillStyle = grd;
   x.fillRect(0, 0, SPRITE, SPRITE);
@@ -368,29 +381,39 @@ function buildTree() {
     }
   }
 
-  // 4f) 外围灯带：缠绕的丝带 / 珠串 / 星星
+  // 4f) 外围灯带：明显绕在树外面的丝带 / 珠串 / 星星
   {
-    const garlandC = () => (Math.random() < 0.72 ? 'white' : accColor());
-    const turns = 7.4;
+    const turns = 6.4;
+    const strandGap = GARLAND === 'double' ? Math.PI : 0;
     const strands = GARLAND === 'double' ? 2 : 1;
-    const n = GARLAND === 'beads' ? 300 : (GARLAND === 'stars' ? 320 : 900);
+    const n = GARLAND === 'beads' ? 340 : (GARLAND === 'stars' ? 380 : 780);
+    const sub = (GARLAND === 'beads' || GARLAND === 'spiral') ? 5 : 1;
+
     for (let s = 0; s < strands; s++) {
       for (let i = 0; i < n; i++) {
         const u = i / n;
-        const bead = GARLAND === 'beads' && i % 9 === 0;
-        const y = BOT - u * TH + rand(-2, 2);
-        const r = R * Math.pow(1 - u, 1.04) * 1.07 + 8;
-        const ang = u * TAU * turns + s * Math.PI + PHASE + rand(-0.02, 0.02);
-        world.push({
-          x: Math.cos(ang) * r, y, z: Math.sin(ang) * r,
-          s: bead ? rand(11, 18) : (GARLAND === 'stars' ? rand(5, 9) : rand(4, 7)),
-          a: bead ? 1 : rand(0.7, 1),
-          c: garlandC(),
-          tamp: rand(0.15, 0.5),
-          tsp: rand(1.2, 4),
-          tph: rand(0, TAU),
-          star: GARLAND === 'stars' || bead,
-        });
+        const y0 = BOT - u * TH;
+        const r0 = R * Math.pow(1 - u, 1.04) * 1.18 + 16;
+        const a0 = u * TAU * turns + s * strandGap + PHASE;
+        const bead = GARLAND === 'beads' && i % 10 === 0;
+
+        for (let k = 0; k < sub; k++) {
+          const off = (k - (sub - 1) / 2) * 3.4;
+          const ang = a0 + off * 0.0035;
+          const r = r0 + off;
+          world.push({
+            x: Math.cos(ang) * r,
+            y: y0 + rand(-2.5, 2.5),
+            z: Math.sin(ang) * r,
+            s: bead ? rand(13, 20) : (GARLAND === 'stars' ? rand(7, 12) : rand(4.5, 7.5)),
+            a: bead ? 1 : rand(0.8, 1),
+            c: garlandColor(),
+            tamp: rand(0.2, 0.55),
+            tsp: rand(1.2, 4),
+            tph: rand(0, TAU),
+            star: GARLAND === 'stars' || bead,
+          });
+        }
       }
     }
   }
@@ -405,8 +428,8 @@ function buildTree() {
       y: BOT - u * TH + rand(-12, 12),
       z: Math.sin(ang) * rad,
       s: rand(55, 125),
-      a: rand(0.03, 0.075),
-      c: 'ice',
+      a: rand(0.022, 0.055),
+      c: accColor(),
       tamp: rand(0, 0.2),
       tsp: rand(0.5, 1.5),
       tph: rand(0, TAU),
@@ -546,32 +569,37 @@ function drawText(alpha) {
   ctx.globalAlpha = alpha;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = '#f3faff';
-  ctx.shadowColor = rgba(SCHEME.glow, 0.9);
-  ctx.shadowBlur = fs * 0.55;
 
+  // ① 小字：Merry Christmas
+  ctx.fillStyle = '#9fb8d0';
+  ctx.shadowColor = rgba(SCHEME.glow, 0.75);
+  ctx.shadowBlur = fs * 0.35;
+  if ('letterSpacing' in ctx) ctx.letterSpacing = `${(fs * 0.22).toFixed(1)}px`;
+  ctx.font = `italic ${(fs * 0.4).toFixed(0)}px Georgia, "Times New Roman", "Songti SC", serif`;
+  ctx.fillText(GREET, x, y);
+  ctx.fillText(GREET, x, y);
+
+  // ② 大字：TO:名字
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = rgba(SCHEME.glow, 0.85);
+  ctx.shadowBlur = fs * 0.7;
   if ('letterSpacing' in ctx) ctx.letterSpacing = `${(fs * 0.02).toFixed(1)}px`;
   ctx.font = `italic ${fs.toFixed(0)}px Georgia, "Times New Roman", "Songti SC", serif`;
-  ctx.fillText(GREET, x, y);
-  ctx.fillText(GREET, x, y);
+  ctx.fillText('TO:' + TO, x + fs * 0.05, y + fs * 1.3);
+  ctx.fillText('TO:' + TO, x + fs * 0.05, y + fs * 1.3);
 
-  if ('letterSpacing' in ctx) ctx.letterSpacing = `${(fs * 0.02).toFixed(1)}px`;
-  ctx.font = `italic ${(fs * 0.72).toFixed(0)}px Georgia, "Times New Roman", "Songti SC", serif`;
-  ctx.fillText('TO:' + TO, x + fs * 0.04, y + fs * 1.45);
-  ctx.fillText('TO:' + TO, x + fs * 0.04, y + fs * 1.45);
-
+  // ③ 祝福语（自动换行）
   if (MSG) {
     if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
-    const mfs = fs * (MSG.length > 24 ? 0.4 : 0.46);
+    const mfs = fs * (MSG.length > 24 ? 0.45 : 0.52);
     ctx.font = `italic ${mfs.toFixed(0)}px Georgia, "Times New Roman", "Songti SC", serif`;
-    ctx.fillStyle = '#c9dbee';
+    ctx.fillStyle = '#dbe9f8';
     ctx.shadowBlur = fs * 0.3;
-    const maxW = PORTRAIT ? W * 0.8 : W * 0.34;
+    const maxW = PORTRAIT ? W * 0.82 : W * 0.36;
     const lines = wrapText(MSG, maxW).slice(0, PORTRAIT ? 4 : 6);
     for (let i = 0; i < lines.length; i++) {
-      const ly = y + fs * 2.12 + i * mfs * 1.36;
-      ctx.fillText(lines[i], x + fs * 0.04, ly);
-      ctx.fillText(lines[i], x + fs * 0.04, ly);
+      const ly = y + fs * 2.42 + i * mfs * 1.42;
+      ctx.fillText(lines[i], x + fs * 0.05, ly);
     }
   }
 
@@ -687,9 +715,9 @@ function frame(now) {
 
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.globalCompositeOperation = 'lighter';
-  ctx.globalAlpha = 0.34;
+  ctx.globalAlpha = 0.30;
   ctx.drawImage(bloomA, 0, 0, W, H);
-  ctx.globalAlpha = 0.22;
+  ctx.globalAlpha = 0.18;
   ctx.drawImage(bloomB, 0, 0, W, H);
 
   // 雪
