@@ -28,7 +28,10 @@
 const Q = new URLSearchParams(location.search);
 const GREET = (Q.get('greet') || 'Merry Christmas').slice(0, 24);
 const TO    = (Q.get('to')    || 'YOU').slice(0, 20);
+const MSG   = (Q.get('msg')   || '').slice(0, 30);
 const STILL = Q.has('still');
+
+if (TO !== 'YOU') document.title = `Merry Christmas · TO:${TO}`;
 
 /* ---------------- 基础工具 ---------------- */
 const TAU = Math.PI * 2;
@@ -38,27 +41,45 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const canvas = document.getElementById('scene');
 const ctx = canvas.getContext('2d', { alpha: false });
 
-/* ---------------- 调色板 ---------------- */
-const PALETTE = [
-  { c: 'white', w: 0.36 },
-  { c: 'ice',   w: 0.42 },
-  { c: 'blue',  w: 0.12 },
-  { c: 'gold',  w: 0.08 },
-  { c: 'pink',  w: 0.02 },
-];
+/* ---------------- 颜色 & 配色主题 ---------------- */
 const COLOR_RGB = {
   white: [255, 255, 255],
   ice:   [180, 231, 255],
   blue:  [ 96, 172, 255],
   gold:  [255, 209, 134],
+  amber: [255, 176,  86],
   pink:  [255, 168, 214],
+  rose:  [255, 120, 170],
   violet:[188, 152, 255],
+  mint:  [130, 255, 205],
+  teal:  [ 90, 240, 220],
 };
+
+// 一个主题 = 树身配色比例 + 爱心用色 + 两处光晕的颜色
+const SCHEMES = {
+  ice:    { name: '霜蓝', list: [['white', .36], ['ice', .42], ['blue', .12], ['gold', .08], ['pink', .02]], heart: ['pink', 'violet', 'white'],  glow: [92, 158, 245],  hg: [214, 168, 255] },
+  gold:   { name: '暖金', list: [['white', .32], ['gold', .40], ['amber', .18], ['ice', .08], ['rose', .02]], heart: ['gold', 'amber', 'white'], glow: [244, 190, 110], hg: [255, 205, 140] },
+  rose:   { name: '樱粉', list: [['white', .30], ['pink', .40], ['rose', .18], ['violet', .10], ['gold', .02]], heart: ['pink', 'rose', 'white'],  glow: [240, 140, 190], hg: [255, 170, 210] },
+  mint:   { name: '薄荷', list: [['white', .32], ['mint', .40], ['teal', .16], ['ice', .10], ['gold', .02]], heart: ['mint', 'teal', 'white'],  glow: [110, 235, 210], hg: [160, 255, 230] },
+  violet: { name: '紫罗兰', list: [['white', .30], ['violet', .42], ['blue', .16], ['pink', .10], ['gold', .02]], heart: ['violet', 'pink', 'white'], glow: [150, 130, 245], hg: [200, 170, 255] },
+  snow:   { name: '初雪', list: [['white', .62], ['ice', .30], ['blue', .08]], heart: ['white', 'ice'], glow: [160, 200, 255], hg: [225, 238, 255] },
+  aurora: { name: '极光', list: [['mint', .30], ['teal', .24], ['ice', .26], ['violet', .12], ['white', .08]], heart: ['mint', 'teal', 'white'], glow: [110, 235, 200], hg: [180, 255, 220] },
+};
+
+const SCHEME = SCHEMES[(Q.get('pal') || 'ice').toLowerCase()] || SCHEMES.ice;
 
 function pickColor() {
   let r = Math.random(), acc = 0;
-  for (const p of PALETTE) { acc += p.w; if (r <= acc) return p.c; }
-  return 'ice';
+  for (const p of SCHEME.list) { acc += p[1]; if (r <= acc) return p[0]; }
+  return SCHEME.list[0][0];
+}
+
+function heartColor() {
+  return SCHEME.heart[(Math.random() * SCHEME.heart.length) | 0];
+}
+
+function rgba(rgb, a) {
+  return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`;
 }
 
 /* ---------------- 光点贴图（预渲染，保证上万粒子也流畅） ---------------- */
@@ -301,7 +322,7 @@ function buildHeart() {
       y: -hy * g * HEART.k,
       s: edge ? rand(2.8, 5) : rand(2, 3.8),
       a: edge ? rand(0.7, 1) : rand(0.4, 0.8),
-      c: Math.random() < 0.6 ? 'pink' : (Math.random() < 0.5 ? 'violet' : 'white'),
+      c: heartColor(),
       tph: rand(0, TAU),
       tsp: rand(1.4, 4),
     });
@@ -405,7 +426,7 @@ function drawText(alpha) {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#f3faff';
-  ctx.shadowColor = 'rgba(150,205,255,0.9)';
+  ctx.shadowColor = rgba(SCHEME.glow, 0.9);
   ctx.shadowBlur = fs * 0.55;
 
   if ('letterSpacing' in ctx) ctx.letterSpacing = `${(fs * 0.02).toFixed(1)}px`;
@@ -417,6 +438,14 @@ function drawText(alpha) {
   ctx.font = `italic ${(fs * 0.72).toFixed(0)}px Georgia, "Times New Roman", "Songti SC", serif`;
   ctx.fillText('TO:' + TO, x + fs * 0.04, y + fs * 1.45);
   ctx.fillText('TO:' + TO, x + fs * 0.04, y + fs * 1.45);
+
+  if (MSG) {
+    if ('letterSpacing' in ctx) ctx.letterSpacing = `${(fs * 0.01).toFixed(1)}px`;
+    ctx.font = `italic ${(fs * 0.5).toFixed(0)}px Georgia, "Times New Roman", "Songti SC", serif`;
+    ctx.fillStyle = '#c9dbee';
+    ctx.fillText(MSG, x + fs * 0.04, y + fs * 2.16);
+    ctx.fillText(MSG, x + fs * 0.04, y + fs * 2.16);
+  }
 
   ctx.shadowBlur = 0;
   if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
@@ -461,16 +490,16 @@ function frame(now) {
   ctx.setTransform(DPR * S, 0, 0, DPR * S, DPR * W / 2, DPR * (H / 2 + YOFF * S));
 
   const amb = ctx.createRadialGradient(0, -60, 0, 0, -60, 520);
-  amb.addColorStop(0, 'rgba(92,158,245,0.20)');
-  amb.addColorStop(0.5, 'rgba(64,118,210,0.08)');
-  amb.addColorStop(1, 'rgba(40,80,160,0)');
+  amb.addColorStop(0, rgba(SCHEME.glow, 0.20));
+  amb.addColorStop(0.5, rgba(SCHEME.glow, 0.07));
+  amb.addColorStop(1, rgba(SCHEME.glow, 0));
   ctx.fillStyle = amb;
   ctx.fillRect(-VW / 2, -VH / 2, VW, VH);
 
   const gnd = ctx.createRadialGradient(0, TREE.BOT + 20, 0, 0, TREE.BOT + 20, 430);
-  gnd.addColorStop(0, 'rgba(96,166,245,0.22)');
-  gnd.addColorStop(0.5, 'rgba(64,124,214,0.06)');
-  gnd.addColorStop(1, 'rgba(40,80,160,0)');
+  gnd.addColorStop(0, rgba(SCHEME.glow, 0.22));
+  gnd.addColorStop(0.5, rgba(SCHEME.glow, 0.06));
+  gnd.addColorStop(1, rgba(SCHEME.glow, 0));
   ctx.fillStyle = gnd;
   ctx.fillRect(-VW / 2, TREE.BOT - 220, VW, 520);
 
@@ -505,9 +534,9 @@ function frame(now) {
   const hyy = (HEART.y + hb) * hk;
 
   const bloom = ctx.createRadialGradient(0, hyy, 0, 0, hyy, 92);
-  bloom.addColorStop(0, 'rgba(214,168,255,0.34)');
-  bloom.addColorStop(0.45, 'rgba(150,120,255,0.10)');
-  bloom.addColorStop(1, 'rgba(120,100,255,0)');
+  bloom.addColorStop(0, rgba(SCHEME.hg, 0.34));
+  bloom.addColorStop(0.45, rgba(SCHEME.hg, 0.10));
+  bloom.addColorStop(1, rgba(SCHEME.hg, 0));
   ctx.globalAlpha = ease;
   ctx.fillStyle = bloom;
   ctx.fillRect(-105, hyy - 105, 210, 210);
