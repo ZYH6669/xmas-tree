@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Merry Christmas · 代码圣诞树</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #04060b; }
+  body { cursor: crosshair; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<script>
+(() => {
+'use strict';
+
+/* =========================================================
+ * 双击打开即可，不需要联网、不需要安装任何东西
+ * 地址栏参数： ?to=小明        第二行 → “TO:小明”
+ *              ?greet=圣诞快乐  第一行自定义
+ *              ?still=1        定格画面，方便截图
+ * 快捷键： S 保存 PNG    F 全屏    点击/触摸 撒一把星光
+ * =======================================================*/
+const Q = new URLSearchParams(location.search);
+const GREET = (Q.get('greet') || 'Merry Christmas').slice(0, 24);
+const TO    = (Q.get('to')    || 'YOU').slice(0, 20);
+const STILL = Q.has('still');
+
+/* ---------------- 基础工具 ---------------- */
+const TAU = Math.PI * 2;
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+
+const canvas = document.getElementById('scene');
+const ctx = canvas.getContext('2d', { alpha: false });
+
+/* ---------------- 调色板 ---------------- */
+const PALETTE = [
+  { c: 'white', w: 0.36 },
+  { c: 'ice',   w: 0.42 },
+  { c: 'blue',  w: 0.12 },
+  { c: 'gold',  w: 0.08 },
+  { c: 'pink',  w: 0.02 },
+];
+const COLOR_RGB = {
+  white: [255, 255, 255],
+  ice:   [180, 231, 255],
+  blue:  [ 96, 172, 255],
+  gold:  [255, 209, 134],
+  pink:  [255, 168, 214],
+  violet:[188, 152, 255],
+};
+
+function pickColor() {
+  let r = Math.random(), acc = 0;
+  for (const p of PALETTE) { acc += p.w; if (r <= acc) return p.c; }
+  return 'ice';
+}
+
+/* ---------------- 光点贴图（预渲染，保证上万粒子也流畅） ---------------- */
+const SPRITE = 64;
+function makeDot([r, g, b]) {
+  const c = document.createElement('canvas');
+  c.width = c.height = SPRITE;
+  const x = c.getContext('2d');
+  const grd = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grd.addColorStop(0.00, 'rgba(255,255,255,1)');
+  grd.addColorStop(0.14, `rgba(${r},${g},${b},0.95)`);
+  grd.addColorStop(0.32, `rgba(${r},${g},${b},0.34)`);
+  grd.addColorStop(0.62, `rgba(${r},${g},${b},0.08)`);
+  grd.addColorStop(1.00, `rgba(${r},${g},${b},0)`);
+  x.fillStyle = grd;
+  x.fillRect(0, 0, SPRITE, SPRITE);
+  return c;
+}
+
+function makeStar([r, g, b]) {
+  const s = 96, c = document.createElement('canvas');
+  c.width = c.height = s;
+  const x = c.getContext('2d');
+  x.globalCompositeOperation = 'lighter';
+
+  const core = x.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s * 0.17);
+  core.addColorStop(0, 'rgba(255,255,255,1)');
+  core.addColorStop(0.35, `rgba(${r},${g},${b},0.8)`);
+  core.addColorStop(1, `rgba(${r},${g},${b},0)`);
+  x.fillStyle = core;
+  x.fillRect(0, 0, s, s);
+
+  // 十字星芒：把圆形渐变拉成细长椭圆
+  for (let i = 0; i < 2; i++) {
+    x.save();
+    x.translate(s / 2, s / 2);
+    x.rotate(i * Math.PI / 2);
+    x.scale(1, 0.05);
+    const spike = x.createRadialGradient(0, 0, 0, 0, 0, s / 2);
+    spike.addColorStop(0.00, 'rgba(255,255,255,0.95)');
+    spike.addColorStop(0.22, `rgba(${r},${g},${b},0.5)`);
+    spike.addColorStop(1.00, `rgba(${r},${g},${b},0)`);
+    x.fillStyle = spike;
+    x.fillRect(-s / 2, -s / 2, s, s);
+    x.restore();
+  }
+  return c;
+}
+
+const DOT = {}, STAR = {};
+for (const k in COLOR_RGB) {
+  DOT[k] = makeDot(COLOR_RGB[k]);
+  STAR[k] = makeStar(COLOR_RGB[k]);
+}
+
+/* ---------------- 场景状态 ---------------- */
+let W = 0, H = 0, DPR = 1, S = 1, VW = 0, VH = 0, PORTRAIT = false;
+let bgGrad = null;
+
+// 两级降采样柔光（廉价 bloom）：把画面缩小再叠回去形成光晕
+let AW = 0, AH = 0, BW2 = 0, BH2 = 0;
+const bloomA = document.createElement('canvas');
+const actx = bloomA.getContext('2d');
+const bloomB = document.createElement('canvas');
+const bctx = bloomB.getContext('2d');
+
+const TREE = { H: 600, R: 285, BOT: 300, TOP: -300 };
+const FOCAL = 1390;
+const CAM_Z = 1250;
+const TILT = 0.10;
+let YOFF = -30;                      // 构图上下微调，resize 时按横竖屏决定
+
+const world = [];      // 树体粒子
+const heart = [];      // 树梢爱心
+let snow = [], stars = [], bursts = [];
+
+/* ---------------- 生成圣诞树 ---------------- */
+function buildTree() {
+  const { H: TH, R, BOT } = TREE;
+
+  // 1) 螺旋灯带：9 股螺旋从底座绕到树梢
+  const strands = 9, per = 760;
+  for (let s = 0; s < strands; s++) {
+    for (let i = 0; i < per; i++) {
+      const u = Math.pow(i / per, 1.28);                   // 0 底 → 1 梢，底部更密
+      const y = BOT - u * TH + rand(-3, 3);
+      const rad = R * Math.pow(1 - u, 1.04) * (1 + 0.025 * Math.sin(u * 24 + s * 1.7));
+      const ang = u * TAU * 5.2 + (s / strands) * TAU + rand(-0.14, 0.14);
+      const j = rand(-9, 9) * (0.35 + 0.65 * (1 - u));
+      world.push({
+        x: Math.cos(ang) * (rad + j),
+        y,
+        z: Math.sin(ang) * (rad + j),
+        s: rand(4, 8),
+        a: rand(0.6, 0.95),
+        c: pickColor(),
+        tamp: Math.random() < 0.15 ? rand(0.5, 0.85) : rand(0.05, 0.22),
+        tsp: rand(1.2, 4.2),
+        tph: rand(0, TAU),
+        star: Math.random() < 0.05,
+      });
+    }
+  }
+
+  // 2) 表面绒毛：贴住锥面，把螺旋之间的空隙填满
+  for (let i = 0; i < 2200; i++) {
+    const u = 1 - Math.sqrt(Math.random());
+    const y = BOT - u * TH + rand(-5, 5);
+    const rad = R * Math.pow(1 - u, 1.04) * rand(0.82, 1.04);
+    const ang = rand(0, TAU);
+    world.push({
+      x: Math.cos(ang) * rad,
+      y,
+      z: Math.sin(ang) * rad,
+      s: rand(2.6, 5.6),
+      a: rand(0.26, 0.62),
+      c: pickColor(),
+      tamp: rand(0.05, 0.3),
+      tsp: rand(0.8, 3.4),
+      tph: rand(0, TAU),
+      star: Math.random() < 0.02,
+    });
+  }
+
+  // 3) 内部雾状填充，让锥体有体积感
+  for (let i = 0; i < 1700; i++) {
+    const u = 1 - Math.sqrt(Math.random());
+    const y = BOT - u * TH + rand(-8, 8);
+    const rad = R * Math.pow(1 - u, 1.04) * Math.sqrt(Math.random()) * 0.9;
+    const ang = rand(0, TAU);
+    world.push({
+      x: Math.cos(ang) * rad,
+      y,
+      z: Math.sin(ang) * rad,
+      s: rand(2.4, 5.4),
+      a: rand(0.16, 0.5),
+      c: pickColor(),
+      tamp: rand(0.1, 0.4),
+      tsp: rand(0.8, 3),
+      tph: rand(0, TAU),
+      star: false,
+    });
+  }
+
+  // 4) 底部星尘旋涡：铺满 + 双旋臂 + 亮环
+  const RIM = R * 1.12;
+  const discY = (u) => BOT + 6 + 26 * Math.pow(u, 1.7);
+
+  // 4a) 均匀铺满的星尘底
+  for (let i = 0; i < 1600; i++) {
+    const u = Math.sqrt(Math.random());
+    const r = RIM * u;
+    const ang = rand(0, TAU);
+    world.push({
+      x: Math.cos(ang) * r,
+      y: discY(u) + rand(-9, 9),
+      z: Math.sin(ang) * r,
+      s: rand(2.2, 4.8),
+      a: rand(0.14, 0.42),
+      c: pickColor(),
+      tamp: rand(0.05, 0.3),
+      tsp: rand(1, 3.6),
+      tph: rand(0, TAU),
+      star: false,
+    });
+  }
+
+  // 4b) 双旋臂
+  for (let i = 0; i < 1500; i++) {
+    const u = Math.pow(i / 1500, 0.72);
+    const r = RIM * u + rand(-5, 5);
+    const arm = Math.random() < 0.5 ? 0 : Math.PI;
+    const ang = u * TAU * 2.4 + arm + rand(-0.12, 0.12);
+    world.push({
+      x: Math.cos(ang) * r,
+      y: discY(u) + rand(-11, 11),
+      z: Math.sin(ang) * r,
+      s: rand(3, 6.4),
+      a: rand(0.24, 0.68),
+      c: pickColor(),
+      tamp: Math.random() < 0.2 ? rand(0.5, 0.85) : rand(0.05, 0.25),
+      tsp: rand(1, 3.6),
+      tph: rand(0, TAU),
+      star: Math.random() < 0.05,
+    });
+  }
+
+  // 4c) 外圈亮环
+  for (let i = 0; i < 520; i++) {
+    const u = rand(0.9, 1.04);
+    const r = RIM * u;
+    const ang = rand(0, TAU);
+    world.push({
+      x: Math.cos(ang) * r,
+      y: discY(u) + rand(-15, 15),
+      z: Math.sin(ang) * r,
+      s: rand(3.6, 7.2),
+      a: rand(0.28, 0.62),
+      c: Math.random() < 0.5 ? 'white' : pickColor(),
+      tamp: rand(0.1, 0.5),
+      tsp: rand(1.4, 4),
+      tph: rand(0, TAU),
+      star: Math.random() < 0.06,
+    });
+  }
+
+  // 5) 大颗柔光，充当额外的空气感
+  for (let i = 0; i < 600; i++) {
+    const u = Math.pow(rand(0.03, 1), 1.05);
+    const rad = R * Math.pow(1 - u, 1.04) * rand(0.15, 1);
+    const ang = rand(0, TAU);
+    world.push({
+      x: Math.cos(ang) * rad,
+      y: BOT - u * TH + rand(-12, 12),
+      z: Math.sin(ang) * rad,
+      s: rand(55, 125),
+      a: rand(0.03, 0.075),
+      c: 'ice',
+      tamp: rand(0, 0.2),
+      tsp: rand(0.5, 1.5),
+      tph: rand(0, TAU),
+      star: false,
+      haze: true,
+    });
+  }
+}
+
+/* ---------------- 树梢爱心 ---------------- */
+const HEART = { y: TREE.TOP - 52, k: 1.42 };
+function buildHeart() {
+  const N = 1000;
+  for (let i = 0; i < N; i++) {
+    const t = rand(0, TAU);
+    const hx = 16 * Math.pow(Math.sin(t), 3);
+    const hy = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+    const edge = Math.random() < 0.28;
+    const g = edge ? rand(0.88, 1) : Math.sqrt(Math.random());
+    heart.push({
+      x: hx * g * HEART.k,
+      y: -hy * g * HEART.k,
+      s: edge ? rand(2.8, 5) : rand(2, 3.8),
+      a: edge ? rand(0.7, 1) : rand(0.4, 0.8),
+      c: Math.random() < 0.6 ? 'pink' : (Math.random() < 0.5 ? 'violet' : 'white'),
+      tph: rand(0, TAU),
+      tsp: rand(1.4, 4),
+    });
+  }
+}
+
+/* ---------------- 背景星、雪 ---------------- */
+function buildStars() {
+  stars = [];
+  const n = Math.round((W * H) / 7500);
+  for (let i = 0; i < n; i++) {
+    stars.push({
+      x: rand(0, W), y: rand(0, H),
+      s: rand(0.7, 2.6),
+      a: rand(0.1, 0.6),
+      ph: rand(0, TAU),
+      sp: rand(0.3, 1.6),
+      big: Math.random() < 0.05,
+    });
+  }
+}
+
+function buildSnow() {
+  const n = Math.round(clamp((W * H) / 10000, 70, 210));
+  snow = [];
+  for (let i = 0; i < n; i++) {
+    const near = Math.random() < 0.13;
+    snow.push({
+      x: rand(0, W), y: rand(0, H),
+      r: near ? rand(10, 24) : rand(1.2, 3.8),
+      a: near ? rand(0.035, 0.09) : rand(0.18, 0.65),
+      vy: near ? rand(5, 13) : rand(14, 46),
+      drift: rand(-10, 10),
+      ph: rand(0, TAU),
+      sp: rand(0.2, 0.8),
+    });
+  }
+}
+
+/* ---------------- 尺寸 / 构图 ---------------- */
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = Math.max(320, window.innerWidth);
+  H = Math.max(420, window.innerHeight);
+  canvas.width = Math.round(W * DPR);
+  canvas.height = Math.round(H * DPR);
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+  PORTRAIT = H > W * 1.08;
+  S = PORTRAIT ? W / 700 : Math.min(H / 1150, W / 1400);
+  VW = W / S;
+  VH = H / S;
+  YOFF = PORTRAIT ? -20 : -30;
+
+  AW = Math.max(2, Math.round(W * DPR / 4));
+  AH = Math.max(2, Math.round(H * DPR / 4));
+  bloomA.width = AW;
+  bloomA.height = AH;
+  BW2 = Math.max(2, Math.round(AW / 2));
+  BH2 = Math.max(2, Math.round(AH / 2));
+  bloomB.width = BW2;
+  bloomB.height = BH2;
+
+  bgGrad = ctx.createRadialGradient(W * 0.5, H * 0.42, 0, W * 0.5, H * 0.42, Math.max(W, H) * 0.8);
+  bgGrad.addColorStop(0, '#0b1626');
+  bgGrad.addColorStop(0.42, '#070c16');
+  bgGrad.addColorStop(1, '#03050a');
+
+  buildStars();
+  buildSnow();
+}
+
+/* ---------------- 点击撒星光 ---------------- */
+function burst(px, py) {
+  const cols = ['white', 'ice', 'gold', 'pink'];
+  for (let i = 0; i < 46; i++) {
+    const a = rand(0, TAU), sp = rand(40, 280);
+    bursts.push({
+      x: px, y: py,
+      vx: Math.cos(a) * sp,
+      vy: Math.sin(a) * sp - 50,
+      life: 1,
+      size: rand(3, 8),
+      c: cols[(Math.random() * cols.length) | 0],
+    });
+  }
+}
+
+/* ---------------- 文案 ---------------- */
+function drawText(alpha) {
+  const fs = PORTRAIT
+    ? clamp(Math.min(W * 0.072, H * 0.05), 22, 54)
+    : clamp(H * 0.05, 26, 62);
+  const x  = PORTRAIT ? W * 0.07 : Math.max(28, W * 0.055);
+  const y  = PORTRAIT ? H * 0.10 : H * 0.335;
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = alpha;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#f3faff';
+  ctx.shadowColor = 'rgba(150,205,255,0.9)';
+  ctx.shadowBlur = fs * 0.55;
+
+  if ('letterSpacing' in ctx) ctx.letterSpacing = `${(fs * 0.02).toFixed(1)}px`;
+  ctx.font = `italic ${fs.toFixed(0)}px Georgia, "Times New Roman", "Songti SC", serif`;
+  ctx.fillText(GREET, x, y);
+  ctx.fillText(GREET, x, y);
+
+  if ('letterSpacing' in ctx) ctx.letterSpacing = `${(fs * 0.02).toFixed(1)}px`;
+  ctx.font = `italic ${(fs * 0.72).toFixed(0)}px Georgia, "Times New Roman", "Songti SC", serif`;
+  ctx.fillText('TO:' + TO, x + fs * 0.04, y + fs * 1.45);
+  ctx.fillText('TO:' + TO, x + fs * 0.04, y + fs * 1.45);
+
+  ctx.shadowBlur = 0;
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+}
+
+/* ---------------- 主循环 ---------------- */
+const start = performance.now();
+let last = start;
+let rot = STILL ? 0.62 : 0;
+
+function frame(now) {
+  const dt = STILL ? 0 : Math.min(0.05, (now - last) / 1000);
+  last = now;
+  const t = STILL ? 24 : (now - start) / 1000;
+  const fade = STILL ? 1 : clamp(t / 2.0, 0, 1);
+  const ease = fade * fade * (3 - 2 * fade);
+
+  if (!STILL) rot += dt * 0.10;
+
+  const cy = Math.cos(rot), sy = Math.sin(rot);
+  const ct = Math.cos(TILT), st = Math.sin(TILT);
+
+  // 背景
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.globalCompositeOperation = 'lighter';
+
+  // 背景星
+  for (const s of stars) {
+    const tw = 0.55 + 0.45 * Math.sin(t * s.sp + s.ph);
+    ctx.globalAlpha = s.a * tw * ease;
+    const spr = s.big ? STAR.ice : DOT.white;
+    const sz = s.s * 5;
+    ctx.drawImage(spr, s.x - sz / 2, s.y - sz / 2, sz, sz);
+  }
+
+  // 大气光晕 + 地面反光（世界坐标）
+  ctx.setTransform(DPR * S, 0, 0, DPR * S, DPR * W / 2, DPR * (H / 2 + YOFF * S));
+
+  const amb = ctx.createRadialGradient(0, -60, 0, 0, -60, 520);
+  amb.addColorStop(0, 'rgba(92,158,245,0.20)');
+  amb.addColorStop(0.5, 'rgba(64,118,210,0.08)');
+  amb.addColorStop(1, 'rgba(40,80,160,0)');
+  ctx.fillStyle = amb;
+  ctx.fillRect(-VW / 2, -VH / 2, VW, VH);
+
+  const gnd = ctx.createRadialGradient(0, TREE.BOT + 20, 0, 0, TREE.BOT + 20, 430);
+  gnd.addColorStop(0, 'rgba(96,166,245,0.22)');
+  gnd.addColorStop(0.5, 'rgba(64,124,214,0.06)');
+  gnd.addColorStop(1, 'rgba(40,80,160,0)');
+  ctx.fillStyle = gnd;
+  ctx.fillRect(-VW / 2, TREE.BOT - 220, VW, 520);
+
+  // 树体粒子
+  for (let i = 0; i < world.length; i++) {
+    const p = world[i];
+    const x1 = p.x * cy - p.z * sy;
+    const z1 = p.x * sy + p.z * cy;
+    const y1 = p.y * ct - z1 * st;
+    const z2 = p.y * st + z1 * ct;
+
+    const d = CAM_Z + z2;
+    if (d < 80) continue;
+    const k = FOCAL / d;
+    const px = x1 * k, py = y1 * k;
+    if (px < -VW * 0.6 || px > VW * 0.6 || py < -VH * 0.6 || py > VH * 0.6) continue;
+
+    const depth = clamp((z2 + 340) / 680, 0, 1);          // 1 = 靠近镜头
+    const tw = 1 - p.tamp + p.tamp * Math.sin(t * p.tsp + p.tph);
+    const a = p.a * (0.34 + 0.66 * depth) * tw * ease;
+    if (a < 0.012) continue;
+
+    const sz = p.haze ? p.s : p.s * (0.75 + 0.45 * depth);
+    const spr = p.star ? STAR[p.c] : DOT[p.c];
+    ctx.globalAlpha = a > 1 ? 1 : a;
+    ctx.drawImage(spr, px - sz / 2, py - sz / 2, sz, sz);
+  }
+
+  // 爱心
+  const hb = Math.sin(t * 0.9) * 3.5;
+  const hk = FOCAL / CAM_Z;
+  const hyy = (HEART.y + hb) * hk;
+
+  const bloom = ctx.createRadialGradient(0, hyy, 0, 0, hyy, 92);
+  bloom.addColorStop(0, 'rgba(214,168,255,0.34)');
+  bloom.addColorStop(0.45, 'rgba(150,120,255,0.10)');
+  bloom.addColorStop(1, 'rgba(120,100,255,0)');
+  ctx.globalAlpha = ease;
+  ctx.fillStyle = bloom;
+  ctx.fillRect(-105, hyy - 105, 210, 210);
+
+  for (const p of heart) {
+    const tw = 0.6 + 0.4 * Math.sin(t * p.tsp + p.tph);
+    ctx.globalAlpha = clamp(p.a * tw * ease, 0, 1);
+    const sz = p.s;
+    ctx.drawImage(DOT[p.c], p.x - sz / 2, hyy + p.y - sz / 2, sz, sz);
+  }
+
+  // ---- 辉光：把当前画面降采样两次，再叠回去 ----
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  actx.setTransform(1, 0, 0, 1, 0, 0);
+  actx.clearRect(0, 0, AW, AH);
+  actx.drawImage(canvas, 0, 0, AW, AH);
+  bctx.setTransform(1, 0, 0, 1, 0, 0);
+  bctx.clearRect(0, 0, BW2, BH2);
+  bctx.drawImage(bloomA, 0, 0, BW2, BH2);
+
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = 0.34;
+  ctx.drawImage(bloomA, 0, 0, W, H);
+  ctx.globalAlpha = 0.22;
+  ctx.drawImage(bloomB, 0, 0, W, H);
+
+  // 雪
+  for (const f of snow) {
+    f.y += f.vy * dt;
+    f.x += (f.drift + Math.sin(t * f.sp + f.ph) * 6) * dt;
+    if (f.y - f.r > H) { f.y = -f.r; f.x = rand(0, W); }
+    if (f.x < -30) f.x = W + 30;
+    if (f.x > W + 30) f.x = -30;
+    ctx.globalAlpha = f.a * ease;
+    const sz = f.r * 3.2;
+    ctx.drawImage(DOT.white, f.x - sz / 2, f.y - sz / 2, sz, sz);
+  }
+
+  // 点击星光
+  for (let i = bursts.length - 1; i >= 0; i--) {
+    const b = bursts[i];
+    b.life -= dt * 0.85;
+    if (b.life <= 0) { bursts.splice(i, 1); continue; }
+    b.vy += 90 * dt;
+    b.vx *= 0.985;
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+    ctx.globalAlpha = clamp(b.life, 0, 1) * 0.95;
+    const sz = b.size * (0.5 + b.life);
+    ctx.drawImage(STAR[b.c], b.x - sz / 2, b.y - sz / 2, sz, sz);
+  }
+
+  drawText(ease);
+}
+
+/* ---------------- 交互 ---------------- */
+canvas.addEventListener('pointerdown', (e) => burst(e.clientX, e.clientY));
+window.addEventListener('keydown', (e) => {
+  if (e.key === 's' || e.key === 'S') savePNG();
+  if (e.key === 'f' || e.key === 'F') {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen?.();
+  }
+});
+function savePNG() {
+  const a = document.createElement('a');
+  a.download = 'merry-christmas.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+}
+window.addEventListener('resize', resize);
+
+/* ---------------- 启动 ---------------- */
+resize();
+buildTree();
+buildHeart();
+last = performance.now();
+requestAnimationFrame(function loop(now) {
+  frame(now);
+  requestAnimationFrame(loop);
+});
+})();
+</script>
+</body>
+</html>
